@@ -15,13 +15,13 @@ class IntroScene extends Phaser.Scene {
             fill: '#ffffff'
         }).setOrigin(0.5);
 
-        const instructionsText = this.add.text(800, 400, 'Press SPACE to record your voice\nfor 3 seconds. This will be used\nas the bullet sound in the game.', {
+        const instructionsText = this.add.text(800, 400, 'Press ENTER to start the game. ', {
             fontSize: '32px',
             fill: '#ffffff',
             align: 'center'
         }).setOrigin(0.5);
 
-        const startText = this.add.text(800, 550, 'Press ENTER to start the game', {
+        const startText = this.add.text(800, 550, 'Press SPACE to record your voice\nfor 3 seconds. \n\n This will be usedas the bullet \nsound in the game.', {
             fontSize: '32px',
             fill: '#ffffff'
         }).setOrigin(0.5);
@@ -77,6 +77,7 @@ class IntroScene extends Phaser.Scene {
             this.mediaRecorder.stop();
             this.isRecording = false;
             this.recordingText.setText('Recording complete. Processing...');
+            this.time.delayedCall(4000, () => {}, [], this);  // 4-second delay
         }
     }
 
