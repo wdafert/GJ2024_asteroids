@@ -140,13 +140,13 @@ function shootBullet(scene) {
     }
 }
 
-function spawnAsteroids(scene) {
-    for (let i = 0; i < 5; i++) {
-        const x = Phaser.Math.Between(0, 1600); // Updated from 800
-        const y = Phaser.Math.Between(0, 1200); // Updated from 600
+function spawnAsteroids(scene, count = 5) {
+    for (let i = 0; i < count; i++) {
+        const x = Phaser.Math.Between(0, 1600);
+        const y = Phaser.Math.Between(0, 1200);
         const asteroid = asteroids.create(x, y, levelAssets.asteroid);
-        asteroid.setScale(0.2); // Doubled from 0.1
-        asteroid.setVelocity(Phaser.Math.Between(-200, 200), Phaser.Math.Between(-200, 200)); // Doubled velocity range
+        asteroid.setScale(0.2);
+        asteroid.setVelocity(Phaser.Math.Between(-200, 200), Phaser.Math.Between(-200, 200));
     }
 }
 
@@ -198,6 +198,14 @@ function nextLevel(scene) {
         levelTimer = scene.time.delayedCall(levelTime, () => nextLevel(scene), [], scene);
         
         console.log('Level ' + currentLevel + ' started');
+
+        // Add level-specific logic here
+        if (currentLevel === 3) {
+            // Add any special behavior for level 3
+            console.log('Level 3 specific logic activated');
+            // For example, you could increase the number of asteroids:
+            spawnAsteroids(scene, 8); // Spawn 8 asteroids instead of 5
+        }
     }
 }
 
