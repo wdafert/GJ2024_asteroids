@@ -4,10 +4,12 @@ import io
 import os
 from dotenv import load_dotenv
 from groq import Groq
+from elevenlabs.client import ElevenLabs
 import logging
+import time
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -15,78 +17,88 @@ CORS(app)
 
 # Load environment variables
 load_dotenv()
-logger.debug(f"Environment variables loaded. GROQ_API_KEY present: {'GROQ_API_KEY' in os.environ}")
 
-# Get the API key from the environment
-api_key = os.getenv("GROQ_API_KEY")
-if not api_key:
-    logger.error("GROQ_API_KEY not found in environment variables")
-    raise ValueError("GROQ_API_KEY is not set")
+# Get API keys from environment
+groq_api_key = os.getenv("GROQ_API_KEY")
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
 
-logger.debug(f"GROQ_API_KEY loaded: {api_key[:5]}...")  # Log first 5 characters for verification
+if not groq_api_key or not elevenlabs_api_key:
+    logger.error("Missing API keys in environment variables")
+    raise ValueError("API keys are not set")
 
-# Add this after loading the API key
-logger.debug(f"API Key length: {len(api_key)}")
-logger.debug(f"API Key first 5 chars: {api_key[:5]}")
-logger.debug(f"API Key last 5 chars: {api_key[-5:]}")
+logger.info("API keys loaded successfully")
 
-# Initialize the Groq client
-try:
-    client = Groq(api_key=api_key)
-    logger.debug("Groq client initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize Groq client: {str(e)}")
-    raise
+# Initialize clients
+groq_client = Groq(api_key=groq_api_key)
+elevenlabs_client = ElevenLabs(api_key=elevenlabs_api_key)
+
+logger.info("Clients initialized successfully")
+
+def generate_sound_effect(text, duration_seconds=2.0, prompt_influence=0.3):
+    logger.info(f"Generating sound effect for: '{text}'")
+    start_time = time.time()
+
+    result = elevenlabs_client.text_to_sound_effects.convert(
+        text=text,
+        duration_seconds=duration_seconds,
+        prompt_influence=prompt_influence
+    )
+
+    temp_file = "assets/sound/level1/bullet.mp3"
+    with open(temp_file, "wb") as f:
+        for chunk in result:
+            f.write(chunk)
+
+    total_time = (time.time() - start_time) * 1000
+    logger.info(f"Sound effect generated in {total_time:.2f} ms")
+
+    return temp_file
 
 @app.route('/process_audio', methods=['POST'])
 def process_audio():
-    logger.debug("Received request to /process_audio")
+    logger.info("Received request to /process_audio")
     if 'audio' not in request.files:
         logger.warning("No audio file in request")
         return 'No audio file', 400
 
     audio_file = request.files['audio']
-    logger.debug(f"Received audio file: {audio_file.filename}")
-    
-    # Read the audio file into a BytesIO object
-    buffer = io.BytesIO()
-    audio_file.save(buffer)
-    buffer.seek(0)
-    logger.debug("Audio file read into buffer")
+    logger.info(f"Received audio file: {audio_file.filename}")
 
-    # Save the audio file temporarily
-    temp_filename = "temp_audio.mp3"
-    with open(temp_filename, "wb") as temp_file:
-        temp_file.write(buffer.getvalue())
-    logger.debug(f"Temporary file saved: {temp_filename}")
+    # Save the received audio file temporarily
+    temp_input_file = "temp_input_audio.mp3"
+    audio_file.save(temp_input_file)
 
-    # Perform transcription using Groq
     try:
-        with open(temp_filename, "rb") as file:
-            logger.debug("Sending file to Groq for transcription")
-            transcription = client.audio.transcriptions.create(
-                file=(temp_filename, file.read()),
+        # Perform transcription using Groq
+        with open(temp_input_file, "rb") as file:
+            logger.info("Sending file to Groq for transcription")
+            transcription = groq_client.audio.transcriptions.create(
+                file=(temp_input_file, file.read()),
                 model="whisper-large-v3-turbo",
                 response_format="json",
                 language="en",
                 temperature=0.0
             )
         logger.info(f"Transcription received: {transcription.text}")
-    except Exception as e:
-        logger.error(f"Transcription failed: {str(e)}")
-        return 'Transcription failed', 500
 
-    # Clean up the temporary file
-    try:
-        os.remove(temp_filename)
-        logger.debug(f"Temporary file {temp_filename} removed")
-    except Exception as e:
-        logger.warning(f"Failed to remove temporary file: {str(e)}")
+        # Generate sound effect based on transcription
+        sound_effect_file = generate_sound_effect(transcription.text)
 
-    # For now, return the original audio file
-    buffer.seek(0)
-    logger.debug("Returning original audio file")
-    return send_file(buffer, mimetype='audio/mp3')
+        # Send the generated sound effect back to the frontend
+        return send_file(sound_effect_file, mimetype='audio/mp3')
+
+    except Exception as e:
+        logger.error(f"Error during processing: {str(e)}")
+        return 'Processing failed', 500
+
+    # finally:
+    #     # Clean up temporary files
+    #     for file in [temp_input_file, "temp_sound_effect.mp3"]:
+    #         try:
+    #             os.remove(file)
+    #             logger.debug(f"Temporary file {file} removed")
+    #         except Exception as e:
+    #             logger.warning(f"Failed to remove temporary file {file}: {str(e)}")
 
 if __name__ == '__main__':
     logger.info("Starting Flask application")
