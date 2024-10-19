@@ -1,7 +1,7 @@
 const config = {
     type: Phaser.AUTO,
-    width: 1600,  // Doubled from 800
-    height: 1200, // Doubled from 600
+    width: 1600,
+    height: 1200,
     parent: 'game-container',
     scene: {
         preload: preload,
@@ -10,9 +10,7 @@ const config = {
     },
     physics: {
         default: 'arcade',
-        arcade: {
-            debug: false // Change this to false to remove the purple squares
-        }
+        arcade: { debug: false }
     }
 };
 
@@ -23,20 +21,45 @@ let cursors;
 let bullets;
 let asteroids;
 let currentLevel = 1;
-let levelTime = 5000; // 10 seconds in milliseconds
 let levelTimer;
 let scoreText;
 let livesText;
 let timeText;
+let levelText;
 let score = 0;
 let lives = 3;
-let levelText; // Add this new variable for the level display
-let levelAssets = {};
+
+const levelConfigs = {
+    1: {
+        duration: 5000,
+        asteroidCount: 5,
+        shipControl: true,
+        asteroidsBullets: false,
+        shipRotates: true,
+        asteroidMovement: true
+    },
+    2: {
+        duration: 5000,
+        asteroidCount: 8,
+        shipControl: false,
+        asteroidsBullets: true,
+        shipRotates: false,
+        asteroidMovement: false
+    },
+    3: {
+        duration: 5000,
+        asteroidCount: 10,
+        shipControl: true,
+        asteroidsBullets: false,
+        shipRotates: true,
+        asteroidMovement: true
+    },
+    // Add configurations for levels 4 and 5 here
+};
 
 function preload() {
     console.log('Preload function started');
     try {
-        // Load assets for all levels
         for (let level = 1; level <= 5; level++) {
             this.load.image(`ship${level}`, `assets/level${level}/ship.png`);
             this.load.image(`asteroid${level}`, `assets/level${level}/asteroid.png`);
@@ -52,40 +75,16 @@ function preload() {
 function create() {
     console.log('Create function started');
     try {
-        // Create player ship
-        updateLevelAssets(this, currentLevel);
-        ship = this.physics.add.image(800, 600, levelAssets.ship); // Updated starting position
-        ship.setCollideWorldBounds(true);
-        ship.setScale(0.2); // Doubled from 0.1
-        console.log('Ship created at', ship.x, ship.y);
-
-        // Set up keyboard input
         cursors = this.input.keyboard.createCursorKeys();
-
-        // Create bullet group
-        bullets = this.physics.add.group({
-            defaultKey: levelAssets.bullet,
-            maxSize: 10
-        });
-
-        // Create asteroid group
+        bullets = this.physics.add.group();
         asteroids = this.physics.add.group();
 
-        // Add collision detection
-        this.physics.add.collider(bullets, asteroids, bulletHitAsteroid, null, this);
-        this.physics.add.collider(ship, asteroids, shipHitAsteroid, null, this);
+        levelText = this.add.text(32, 32, 'Level: 1', { fontSize: '32px', fill: '#fff' });
+        scoreText = this.add.text(32, 72, 'Score: 0', { fontSize: '32px', fill: '#fff' });
+        livesText = this.add.text(32, 112, 'Lives: 3', { fontSize: '32px', fill: '#fff' });
+        timeText = this.add.text(32, 152, 'Time: 10', { fontSize: '32px', fill: '#fff' });
 
-        // Add UI elements
-        levelText = this.add.text(32, 32, 'Level: 1', { fontSize: '64px', fill: '#fff' }); // Doubled font size and position
-        scoreText = this.add.text(32, 112, 'Score: 0', { fontSize: '64px', fill: '#fff' });
-        livesText = this.add.text(32, 192, 'Lives: 3', { fontSize: '64px', fill: '#fff' });
-        timeText = this.add.text(32, 272, 'Time: 10', { fontSize: '64px', fill: '#fff' });
-
-        // Start level timer
-        levelTimer = this.time.delayedCall(levelTime, () => nextLevel(this), [], this);
-
-        // Spawn initial asteroids
-        spawnAsteroids(this);
+        setupLevel(this);
 
         console.log('Create function completed successfully');
     } catch (error) {
@@ -95,25 +94,35 @@ function create() {
 
 function update() {
     try {
-        // Rotate ship
-        if (cursors.left.isDown) {
-            ship.angle -= 2; // Reduced from 3 to account for larger screen
-        } else if (cursors.right.isDown) {
-            ship.angle += 2; // Reduced from 3 to account for larger screen
+        const levelConfig = levelConfigs[currentLevel];
+
+        if (levelConfig.shipControl) {
+            if (levelConfig.shipRotates) {
+                if (cursors.left.isDown) ship.angle -= 2;
+                else if (cursors.right.isDown) ship.angle += 2;
+            }
+            if (Phaser.Input.Keyboard.JustDown(cursors.space)) {
+                shootBullet(this);
+            }
+        } else {
+            if (cursors.left.isDown || cursors.right.isDown) {
+                const rotationDirection = cursors.left.isDown ? -2 : 2;
+                asteroids.getChildren().forEach(asteroid => {
+                    asteroid.angle += rotationDirection;
+                });
+            }
+            if (Phaser.Input.Keyboard.JustDown(cursors.space) && levelConfig.asteroidsBullets) {
+                asteroids.getChildren().forEach(asteroid => {
+                    shootBulletFromAsteroid(this, asteroid);
+                });
+            }
         }
 
-        // Shoot bullets
-        if (Phaser.Input.Keyboard.JustDown(cursors.space)) {
-            shootBullet(this);
-        }
-
-        // Update time text
-        const timeLeft = Math.ceil((levelTime - levelTimer.getElapsed()) / 1000);
+        const timeLeft = Math.ceil((levelConfig.duration - levelTimer.getElapsed()) / 1000);
         timeText.setText('Time: ' + timeLeft);
 
-        // Update bullet positions
         bullets.children.entries.forEach((bullet) => {
-            bullet.lifespan -= 16; // Assuming 60 FPS
+            bullet.lifespan -= 16;
             if (bullet.lifespan <= 0) {
                 bullet.destroy();
             }
@@ -123,46 +132,114 @@ function update() {
     }
 }
 
-function shootBullet(scene) {
-    // Calculate bullet spawn position at the tip of the ship
-    const bulletX = ship.x + Math.cos(ship.rotation) * ship.width * 0.2 / 2; // Updated from 0.1 to 0.2
-    const bulletY = ship.y + Math.sin(ship.rotation) * ship.height * 0.2 / 2; // Updated from 0.1 to 0.2
+function setupLevel(scene) {
+    const levelConfig = levelConfigs[currentLevel];
 
-    const bullet = bullets.get(bulletX, bulletY);
-    if (bullet) {
-        bullet.setTexture(levelAssets.bullet);
-        bullet.setActive(true);
-        bullet.setVisible(true);
-        bullet.setScale(0.2); // Doubled from 0.1
-        bullet.setRotation(ship.rotation);
-        scene.physics.velocityFromRotation(ship.rotation, 800, bullet.body.velocity); // Doubled speed from 400
-        bullet.lifespan = 1000; // Bullet lives for 1 second
+    if (ship) ship.destroy();
+    ship = scene.physics.add.image(config.width / 2, config.height / 2, `ship${currentLevel}`);
+    ship.setCollideWorldBounds(true);
+    ship.setScale(0.2);
+    ship.setImmovable(!levelConfig.shipControl);
+
+    asteroids.clear(true, true);
+    bullets.clear(true, true);
+
+    spawnAsteroids(scene, levelConfig.asteroidCount, !levelConfig.asteroidMovement);
+
+    // Use different collision functions based on the level
+    if (currentLevel === 2) {
+        scene.physics.add.collider(bullets, ship, bulletHitShipLevel2, null, scene);
+    } else {
+        scene.physics.add.collider(bullets, asteroids, bulletHitTarget, null, scene);
+        scene.physics.add.collider(ship, asteroids, shipHitAsteroid, null, scene);
     }
-}
 
-function spawnAsteroids(scene, count = 5) {
-    for (let i = 0; i < count; i++) {
-        const x = Phaser.Math.Between(0, 1600);
-        const y = Phaser.Math.Between(0, 1200);
-        const asteroid = asteroids.create(x, y, levelAssets.asteroid);
-        asteroid.setScale(0.2);
-        asteroid.setVelocity(Phaser.Math.Between(-200, 200), Phaser.Math.Between(-200, 200));
-    }
-}
+    if (levelTimer) levelTimer.remove();
+    levelTimer = scene.time.delayedCall(levelConfig.duration, () => nextLevel(scene), [], scene);
 
-function bulletHitAsteroid(bullet, asteroid) {
-    bullet.destroy();
-    asteroid.destroy();
-    score += 10;
+    levelText.setText('Level: ' + currentLevel);
+    score = 0;
     scoreText.setText('Score: ' + score);
+    lives = 3;
+    livesText.setText('Lives: ' + lives);
+
+    console.log('Level ' + currentLevel + ' started');
+}
+
+function shootBullet(scene) {
+    const bulletX = ship.x + Math.cos(ship.rotation) * ship.width * 0.2 / 2;
+    const bulletY = ship.y + Math.sin(ship.rotation) * ship.height * 0.2 / 2;
+
+    const bullet = bullets.create(bulletX, bulletY, `bullet${currentLevel}`);
+    bullet.setScale(0.2);
+    bullet.setRotation(ship.rotation);
+    scene.physics.velocityFromRotation(ship.rotation, 800, bullet.body.velocity);
+    bullet.lifespan = 1000;
+}
+
+function shootBulletFromAsteroid(scene, asteroid) {
+    const bulletX = asteroid.x + Math.cos(asteroid.rotation) * asteroid.width * 0.2 / 2;
+    const bulletY = asteroid.y + Math.sin(asteroid.rotation) * asteroid.height * 0.2 / 2;
+
+    const bullet = bullets.create(bulletX, bulletY, `bullet${currentLevel}`);
+    bullet.setScale(0.2);
+    bullet.setRotation(asteroid.rotation);
+    scene.physics.velocityFromRotation(asteroid.rotation, 800, bullet.body.velocity);
+    bullet.lifespan = 1000;
+}
+
+function spawnAsteroids(scene, count, fixedPositions) {
+    for (let i = 0; i < count; i++) {
+        let x, y;
+        if (fixedPositions) {
+            const angle = (i / count) * Math.PI * 2;
+            const radius = Math.min(config.width, config.height) * 0.4;
+            x = config.width / 2 + Math.cos(angle) * radius;
+            y = config.height / 2 + Math.sin(angle) * radius;
+        } else {
+            x = Phaser.Math.Between(0, config.width);
+            y = Phaser.Math.Between(0, config.height);
+        }
+        const asteroid = asteroids.create(x, y, `asteroid${currentLevel}`);
+        asteroid.setScale(0.2);
+        if (!fixedPositions) {
+            asteroid.setVelocity(Phaser.Math.Between(-200, 200), Phaser.Math.Between(-200, 200));
+        }
+    }
+}
+
+function bulletHitTarget(bullet, target) {
+    bullet.destroy();
+    if (target !== ship) {
+        target.destroy();
+        score += 10;
+        scoreText.setText('Score: ' + score);
+    }
+}
+
+function bulletHitShipLevel2(bullet, ship) {
+    bullet.destroy();
+    lives--;
+    livesText.setText('Lives: ' + lives);
+    console.log('Ship hit in level 2, ending level');
+    if (levelTimer) levelTimer.remove();
+    // Use a short delay to ensure all game logic has completed before moving to the next level
+    this.time.delayedCall(100, () => nextLevel(this), [], this);
 }
 
 function shipHitAsteroid(ship, asteroid) {
-    asteroid.destroy();
-    lives--;
-    livesText.setText('Lives: ' + lives);
+    if (!levelConfigs[currentLevel].asteroidsBullets) {
+        asteroid.destroy();
+        lives--;
+        livesText.setText('Lives: ' + lives);
+        checkGameOver(this.scene);
+    }
+}
+
+function checkGameOver(scene) {
     if (lives <= 0) {
-        // Game over logic
+        console.log('Game Over');
+        nextLevel(scene);
     }
 }
 
@@ -171,54 +248,14 @@ function nextLevel(scene) {
     console.log('Moving to level:', currentLevel);
     if (currentLevel > 5) {
         console.log('Game completed');
-        // Game completion logic
-        scene.scene.restart(); // Restart the game for now
+        scene.scene.restart();
+        currentLevel = 1;
     } else {
-        // Update level assets
-        updateLevelAssets(scene, currentLevel);
-
-        // Update ship texture
-        ship.setTexture(levelAssets.ship);
-
-        // Update level text
-        levelText.setText('Level: ' + currentLevel);
-
-        // Reset level and update assets
-        score = 0;
-        scoreText.setText('Score: ' + score);
-        
-        // Clear existing asteroids
-        asteroids.clear(true, true);
-        
-        // Spawn new asteroids
-        spawnAsteroids(scene);
-        
-        // Reset the timer
-        if (levelTimer) levelTimer.remove();
-        levelTimer = scene.time.delayedCall(levelTime, () => nextLevel(scene), [], scene);
-        
-        console.log('Level ' + currentLevel + ' started');
-
-        // Add level-specific logic here
-        if (currentLevel === 3) {
-            // Add any special behavior for level 3
-            console.log('Level 3 specific logic activated');
-            // For example, you could increase the number of asteroids:
-            spawnAsteroids(scene, 8); // Spawn 8 asteroids instead of 5
-        }
+        if (levelTimer) levelTimer.remove(); // Ensure any existing timer is removed
+        setupLevel(scene);
     }
 }
 
-function updateLevelAssets(scene, level) {
-    levelAssets = {
-        ship: `ship${level}`,
-        asteroid: `asteroid${level}`,
-        bullet: `bullet${level}`,
-        ufo: `ufo${level}`
-    };
-}
-
-// Add this at the end of the file
 window.onerror = function(message, source, lineno, colno, error) {
     console.error('Global error:', message, 'at', source, 'line', lineno, 'column', colno);
     console.error('Error object:', error);
