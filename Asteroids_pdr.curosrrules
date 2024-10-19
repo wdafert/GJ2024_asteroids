@@ -1,0 +1,126 @@
+Product Requirements Document (PRD)
+Asteroids Clone with Dynamic Levels
+1. Overview
+Develop an innovative Asteroids clone that revitalizes the classic arcade experience with modern twists. The game will feature 5 unique levels, each with its own set of assets and gameplay logic, offering players a fresh and engaging experience at every stage.
+
+2. Objectives
+Primary Goal: Create a multi-level Asteroids game that maintains the core mechanics of the original while introducing new elements in each level.
+User Engagement: Keep players intrigued by altering game assets and logic per level.
+Replayability: Encourage repeated playthroughs with varying challenges and aesthetics.
+3. Game Mechanics
+3.1 Player Ship
+Movement:
+The ship can rotate left and right.
+No forward or backward movement; the ship remains stationary in position.
+Actions:
+Ability to shoot bullets to destroy asteroids and UFOs.
+3.2 Enemies
+Asteroids:
+Drift across the screen in varying sizes and speeds depending on the level.
+UFOs:
+Appear sporadically, introducing an additional challenge.
+Can shoot back at the player.
+3.3 Projectiles
+Bullets:
+Player-fired projectiles to eliminate threats.
+Limited range or lifespan to prevent infinite travel.
+4. Levels
+4.1 Level Structure
+Total Levels: 5
+Duration: Each level lasts 20 seconds.
+If the player doesn't achieve the level's objective within this time, the game automatically progresses to the next level.
+Introduction Screen:
+Each level begins with an intro displaying the level number and name.
+4.2 Dynamic Changes
+Assets:
+Unique 512x512 PNG images for the ship, asteroids, bullets, and UFOs in each level.
+Game Logic:
+Varying gameplay mechanics per level (e.g., gravity effects, asteroid behaviors, scoring systems).
+5. User Interface
+5.1 Start Menu
+Options:
+Start Game
+Level Selection (allows players to choose a specific level)
+Settings (audio controls, controls overview)
+5.2 In-Game HUD
+Display:
+Score
+Remaining Lives
+Time Left in the Current Level
+6. Audio
+6.1 Background Music
+Tracks:
+A distinct background music track for each level to enhance the unique atmosphere.
+6.2 Sound Effects
+Bullet Firing: Sound played when shooting.
+Explosion: Sound for destroying asteroids or UFOs.
+UFO Alert: Notification sound when a UFO appears.
+7. Assets
+7.1 Graphics
+Format: 512x512 PNG images.
+Assets Per Level:
+Player Ship
+Asteroid
+Bullet
+UFO
+Variation: Different visual themes for each level (e.g., futuristic, retro, abstract).
+7.2 Audio
+Formats: High-quality audio files (e.g., .wav, .mp3).
+Requirements:
+Clear and distinct sounds for all effects.
+Music that complements the visual theme of each level.
+8. Game Flow
+Launch Game:
+Display the start menu with options.
+Level Selection:
+Player can choose to start from Level 1 or select any unlocked level.
+Level Introduction:
+Show level number and name with a thematic intro screen.
+Gameplay:
+Play the level for 20 seconds.
+Implement unique mechanics and assets.
+Level Completion:
+If objectives are met, display a success message.
+Automatically proceed to the next level after 20 seconds, regardless of success.
+Game Completion:
+After Level 5, display the final score and an option to restart or return to the main menu.
+9. Technology Stack
+Programming Language: JavaScript or Python.
+
+JavaScript Framework: Phaser.js for robust game development and easy level management.
+Python Framework: Pygame if opting for Python, suitable for simpler game structures.
+AI Integration:
+
+Utilize AI tools to assist in coding and asset generation where applicable.
+10. Technical Requirements
+10.1 Game Engine Functionality
+Level Management:
+
+Efficiently handle transitions between levels.
+Allow for easy addition or modification of levels.
+Performance:
+
+Optimize for smooth gameplay at all times.
+Ensure assets load quickly without lag.
+10.2 Controls
+Input:
+Keyboard controls for ship rotation and shooting.
+Optionally, support for gamepad input.
+11. Additional Features
+11.1 Scoring System
+Points awarded for destroying asteroids and UFOs.
+Bonus points for completing level objectives within the time limit.
+11.2 Lives and Health
+Lives:
+
+The player starts with a set number of lives.
+Losing all lives results in game over.
+Health System (Optional):
+
+Instead of lives, a health bar that depletes upon collision or being hit.
+11.3 Settings Menu
+Audio:
+Adjust music and sound effect volumes.
+Controls:
+View control scheme.
+Option to customize controls (if feasible).
